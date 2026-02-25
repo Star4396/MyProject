@@ -17,12 +17,14 @@ export function useAppConfig(
 
   const {
     VITE_GLOB_API_URL,
+    VITE_GLOB_MODEL_URL,
     VITE_GLOB_AUTH_DINGDING_CORP_ID,
     VITE_GLOB_AUTH_DINGDING_CLIENT_ID,
   } = config;
 
   const applicationConfig: ApplicationConfig = {
     apiURL: VITE_GLOB_API_URL,
+    modelURL: VITE_GLOB_MODEL_URL,
     auth: {},
   };
   if (VITE_GLOB_AUTH_DINGDING_CORP_ID && VITE_GLOB_AUTH_DINGDING_CLIENT_ID) {

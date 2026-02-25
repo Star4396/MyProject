@@ -13,11 +13,18 @@ export default defineConfig(async () => {
       ],
       server: {
         proxy: {
-          '/api': {
+          '/api/mock': {
             changeOrigin: true,
-            rewrite: (path) => path.replace(/^\/api/, ''),
+            rewrite: (path) => path.replace(/^\/api\/mock/, ''),
             // mock代理目标地址
             target: 'http://localhost:5320/api',
+            ws: true,
+          },
+          '/api/models': {
+            changeOrigin: true,
+            rewrite: (path) => path.replace(/^\/api\/models/, ''),
+            // springboot代理目标地址
+            target: 'http://localhost:9090/',
             ws: true,
           },
         },
