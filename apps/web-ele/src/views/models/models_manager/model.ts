@@ -2,7 +2,8 @@
 export interface ModelData {
   id: number,
   name: string,
-  uploadTime: string
+  url: string,
+  uploadTime: string,
 }
 
 // 分页返回结果通用接口
@@ -15,4 +16,17 @@ export interface PageResult<T> {
 export interface FormModel {
   id?: number,
   name: string,
+  url: string,
+  remark: string,
+}
+
+export interface HttpResponse {
+  code: number;
+  msg: string;
+  data: string;
+}
+
+export interface UploadFile {
+  name: string;
+  url: string;
 }

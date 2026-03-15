@@ -1,47 +1,48 @@
 <script lang="ts" setup>
 import { requestModelClient } from '#/api/request';
 import { Page } from '@vben/common-ui';
-import { Search, RotateCw } from '@vben/icons';
-import { ElButton, ElDialog, ElCard, ElTable, ElTableColumn, ElInput, ElPagination, ElForm, ElFormItem, ElMessageBox } from 'element-plus';
+import { ElButton, ElDialog, ElCard, ElTable, ElTableColumn, ElInput, ElPagination, ElForm, ElFormItem, ElMessageBox, ElUpload, ElMessage, ElIcon, type UploadProps } from 'element-plus';
+import { UploadFilled, RefreshRight, Search } from '@element-plus/icons-vue';
 import { computed, onMounted, reactive, ref } from 'vue';
-import type { FormModel, ModelData, PageResult } from './model';
+import type { FormModel, HttpResponse, ModelData, PageResult, UploadFile } from './model';
 
-const formData = ref<ModelData[]>([])
+const formData = ref<ModelData[]>([]);
 const searchInput = ref<string>('');
 const currentPage = ref<number>(1);
 const pageSize = ref<number>(10);
 const totalNum = ref<number>(0);
 const openModal = ref<boolean>(false);
-const isDetail = ref<boolean>(false);
 const isCreate = ref<boolean>(false);
 const isUpdate = ref<boolean>(false);
+const fileList = ref<UploadFile[]>([]); 
 
 const data = reactive<{ form: FormModel }>({
-  form: {name: ''}
+  form: {name: '', url: '', remark: ''}
 })
 
 const getData = (row: ModelData) => {
-  isDetail.value = true;
-  isCreate.value = false;
-  isUpdate.value = false;
-  data.form = JSON.parse(JSON.stringify(row));
-  openModal.value = true;
+  
 }
 
 const createData = (): void => {
-  isDetail.value = false;
+  fileList.value = [];
   isCreate.value = true;
   isUpdate.value = false;
-  data.form = {name: ''};
+  data.form = {name: '', url: '', remark: ''};
   openModal.value = true;
 }
 
-const updateData = (row: ModelData): void => {
-  isDetail.value = false;
+const handleUpdate = (row: ModelData): void => {
   isCreate.value = false;
   isUpdate.value = true;
   data.form = JSON.parse(JSON.stringify(row));
+  // 处理应该如何显示数据
+  setUploadFileList({ name: data.form.name, url: data.form.url })
   openModal.value = true;
+}
+
+const handleDownload = (row: ModelData): void => {
+  window.open(row.url);
 }
 
 const handleOk = (): void => {
@@ -51,15 +52,12 @@ const handleOk = (): void => {
     update();
   }
   openModal.value = false;
-  isDetail.value = false;
   isCreate.value = false;
   isUpdate.value = false;
 }
 
 const modalName = computed<string>(() => {
-  if (isDetail.value) {
-    return '数据详情';
-  } else if (isCreate.value) {
+  if (isCreate.value) {
     return '新建数据';
   } else if (isUpdate.value) {
     return '修改数据';
@@ -67,9 +65,42 @@ const modalName = computed<string>(() => {
   return ''
 })
 
-// const handleSuccess = () => {
-  
-// }
+const handleSuccess: UploadProps["onSuccess"] = (res: HttpResponse): void => {
+  if (res.code === 200) {
+    ElMessage.success("文件上传成功！");
+    data.form.url = res.data;
+  } else {
+    ElMessage.error("文件上传失败！");
+  }
+}
+
+const handleRemove: UploadProps["onRemove"] = (): void => {
+  data.form.name = '';
+  data.form.url = '';
+}
+
+const setUploadFileList = (fileInfo?: {name?: string, url?: string}) => {
+  // 清空列表
+  fileList.value = []
+
+  if (fileInfo?.name && fileInfo?.url) {
+    if (fileInfo.name != '' && fileInfo.url != '') {
+      fileList.value.push({name: fileInfo.name, url: fileInfo.url});
+    }
+  }
+}
+
+const beforeRemove: UploadProps['beforeRemove'] = (uploadFile) => {
+  return ElMessageBox.confirm(`是否删除${uploadFile.name}？`, "删除提示", {type: "warning"}).then(
+    () => true,
+    () => false,
+  )
+}
+
+const handleExceed: UploadProps["onExceed"] = () => {
+  ElMessage.error("请删除当前文件再上传，并确认是否删除当前文件！");
+}
+
 
 const load = async (): Promise<void> => {
   try {
@@ -136,11 +167,7 @@ onMounted(() => {
           <el-input v-model="searchInput" placeholder="请输入" :prefix-icon="Search" style="width: 200px; margin-right: 12px;" clearable />
           <el-button type="primary" @click="load">搜索</el-button>
           
-          <el-button type="default" class="ml-3" circle @click="reload">
-            <template #icon>
-              <RotateCw />
-            </template>
-          </el-button>
+          <el-button type="default" class="ml-3" circle :icon="RefreshRight" @click="reload"></el-button>
           <el-button type="primary" class="ml-3" @click="createData">新增</el-button>
         
         </div>
@@ -148,14 +175,14 @@ onMounted(() => {
       <el-table :data="formData" stripe @selection-change="" >
         <el-table-column type="selection" width="55" />
         <el-table-column prop="name" label="模型名称" />
+        <el-table-column prop="remark" label="备注" />
         <el-table-column prop="uploadTime" label="上传时间" />
         <el-table-column label="操作">
           <template #default="scoped">
-            <el-button type="default" plain @click="getData(scoped.row)">详情</el-button>
-            <el-button type="warning" plain @click="updateData(scoped.row)">修改</el-button>
-            <el-button type="primary" plain @click="">下载</el-button>
+            <el-button type="default" plain @click="getData(scoped.row)">预览</el-button>
+            <el-button type="warning" plain @click="handleUpdate(scoped.row)">修改</el-button>
+            <el-button type="primary" plain @click="handleDownload(scoped.row)">下载</el-button>
             <el-button type="danger" plain @click="del(scoped.row)">删除</el-button>
-
           </template>
 
           
@@ -176,19 +203,36 @@ onMounted(() => {
         >
         </el-pagination>
       </div>
-
-      
     </el-card>
 
     <el-dialog
       :title="modalName"
       v-model="openModal"
-      width="30%"
+      width="40%"
     >
-      <el-form :model="data.form" ref="form" label-width="80px" :inline="false">
-        <el-form-item label="">
-          <el-input v-model="data.form.name" placeholder="请输入名称"></el-input>
+      <el-form :model="data.form" ref="form" label-width="60px" :inline="false">
+        <el-upload
+        action="/api/models/files/upload"
+        ref="upload"
+        v-model:file-list="fileList"
+        multiple
+        drag
+        :limit="1"
+        :on-success="handleSuccess"
+        :on-remove="handleRemove"
+        :before-remove="beforeRemove"
+        :on-exceed="handleExceed"
+        >
+          <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+          <div class="el-upload__text">拖拽到这 或 点击上传文件</div>
+          <template #tip>
+            推荐上传.glb文件
+          </template>
+        </el-upload>
+        <el-form-item label="备注" class="mt-4">
+          <el-input v-model="data.form.remark" placeholder="请输入备注"></el-input>
         </el-form-item>
+        
       </el-form>
       
       <template #footer>
