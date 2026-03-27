@@ -11,7 +11,13 @@ const routes: RouteRecordRaw[] = [
         name: 'ModelManager',
         meta: {icon: 'lucide:file', title: '模型管理'},
         component: () => import('#/views/models/models_manager/index.vue')
-      }
+      },
+      {
+        path: '/models/preview',
+        name: 'Preview',
+        meta: {icon: 'lucide:presentation', title: '模型预览', hideInMenu: true},
+        component: () => import('#/views/models/preview/index.vue')
+      },
     ]
   }
 ]
