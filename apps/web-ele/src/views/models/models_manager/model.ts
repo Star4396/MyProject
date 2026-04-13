@@ -30,3 +30,8 @@ export interface UploadFile {
   name: string;
   url: string;
 }
+
+export interface PartData {
+  id: number;
+  name: string;
+}
