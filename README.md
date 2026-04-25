@@ -1,5 +1,7 @@
 # 三维模型智能管理平台
-基于 Vue3 + Three.js 与 SpringBoot 构建的工业级三维模型全生命周期管理解决方案，实现模型上传、智能预览、部件级交互与爆炸视图分析的一体化工作流。
+欢迎来的我的个人项目！
+
+本项目是一个基于 VBen Admin(Element Plus) 开发的工业级三维模型全生命周期管理解决方案，实现模型上传、智能预览、部件级交互与爆炸视图分析的一体化工作流。
 
 本项目只包含前端代码，后端代码请
 
@@ -35,8 +37,6 @@
 
 - **后端**：Spring Boot 3 + MyBatis + MySQL
 
-- **部署**：
-
 ## 功能演示
 
 ### 模型管理界面
@@ -44,26 +44,24 @@
 
 查找，新增，修改，分页，下载，删除，批量删除
 
-https://github.com/Star4396/MyProject/releases/download/video/system.mp4
-
-
+https://github.com/user-attachments/assets/84d3c6f8-3ba9-483f-8509-690c1cd79a35
 
 ### 三维预览模式
 
 点击“预览”，首先进入的是整体预览模式，支持播放动画及相机控制
 
+
 鹦鹉
 
-https://github.com/Star4396/MyProject/releases/download/video/parrot_whole.mp4
+https://github.com/user-attachments/assets/52e201d1-19f7-491c-a64d-a8e0734247bb
 
 地牢
 
-https://github.com/Star4396/MyProject/releases/download/video/dungeon_whole.mp4
+https://github.com/user-attachments/assets/b5a3154c-cff5-4c63-af72-5d85a8565061
 
 卧室
 
-https://github.com/Star4396/MyProject/releases/download/video/bedroom_whole.mp4
-
+https://github.com/user-attachments/assets/3b506849-d04e-4c37-a31b-6f4ac0143984
 
 ### 组件级交互
 点击“开启组件预览”按钮进入**组件预览模式**，进入时当前动画会停止。
@@ -76,30 +74,30 @@ https://github.com/Star4396/MyProject/releases/download/video/bedroom_whole.mp4
 
 鹦鹉
 
-https://github.com/Star4396/MyProject/releases/download/video/parrot_component.mp4
+https://github.com/user-attachments/assets/570d20b7-6029-4cf8-b6fa-87520a08c655
 
 地牢
 
-https://github.com/Star4396/MyProject/releases/download/video/dungeon_component.mp4
+https://github.com/user-attachments/assets/6fb0b5d5-7a08-4268-9f05-1d0b6514b5a0
 
 台灯
 
-https://github.com/Star4396/MyProject/releases/download/video/light_component.mp4
+https://github.com/user-attachments/assets/1392d652-ca51-4b30-9c85-0b4a85f5dfbc
 
 ### 爆炸视图
 开启组件预览模式时会出现“开启爆炸视图”按钮，点击开启
 
-鹦鹉
-
-https://github.com/Star4396/MyProject/releases/download/video/parrot_explode.mp4
-
 地牢
 
-https://github.com/Star4396/MyProject/releases/download/video/dungeon_explode.mp4
+https://github.com/user-attachments/assets/364ce6df-1c8f-415b-8658-e0d51857fa75
 
 台灯
 
-https://github.com/Star4396/MyProject/releases/download/video/light_explode.mp4
+https://github.com/user-attachments/assets/9f483b5f-36c6-46d8-ad94-e314045a9db5
+
+鹦鹉（由于开启爆炸视图至少需要两个组件，而鹦鹉只有一个，所以禁用该功能）
+
+https://github.com/user-attachments/assets/8dc0709a-0a50-4d4e-a544-bec2ad84a97c
 
 ## 快速开始
 
