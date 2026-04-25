@@ -5,14 +5,14 @@ export class GPUPickHelper {
     pickingTexture: THREE.WebGLRenderTarget;
     pixelBuffer: Uint8Array;
     pickedObject: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial> | null;
-    pickedObjectSavedColor: number;
+    pickedObjectSavedMaterial: THREE.MeshStandardMaterial | null;
 
     // 创建时的初始化
     constructor() {
         this.pickingTexture = new THREE.WebGLRenderTarget(1, 1);   // 画布设置为1个像素
         this.pixelBuffer = new Uint8Array(4);   // 初始化该像素的rgb+不透明度
         this.pickedObject = null;
-        this.pickedObjectSavedColor = 0;    // 暂存的原始颜色
+        this.pickedObjectSavedMaterial = null;    // 暂存的原始颜色
     }
 
     // 拾取功能
@@ -21,13 +21,8 @@ export class GPUPickHelper {
          camera: THREE.PerspectiveCamera,       // 相机
          renderer: THREE.WebGLRenderer,         // 像素比
          idMap: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>[],
-        ) {
-        // 如果已有被选中的对象，恢复原始纹理+取消选中
-        if (this.pickedObject) {
-            this.pickedObject.material.emissive.setHex(this.pickedObjectSavedColor);    // 还原颜色
-            this.pickedObject = null;  // 设置为当前目标未选中
-        }
-
+        ): number {
+        // 先执行拾取操作
         const pixelRation = renderer.getPixelRatio();
         // 相机裁剪渲染区域
         camera.setViewOffset(
@@ -39,8 +34,7 @@ export class GPUPickHelper {
             1
         );
 
-
-        // 设置渲染画布，渲染到这个1*1的像素上
+        // 设置渲染到这个1*1的虚拟画布上
         renderer.setRenderTarget(this.pickingTexture);
         // 渲染
         renderer.render(scene, camera);
@@ -63,20 +57,36 @@ export class GPUPickHelper {
         // 根据id查找对象
         if (id > 0 && idMap[id]) {
             const intersectedObject = idMap[id];
+            // 如果拾取对象和当前选中对象一致
+            if (this.pickedObject === intersectedObject) {
+                return id;
+            }
+            // 如果不是，则执行清空操作
+            this.clearSelection();
             // 选中对象
             this.pickedObject = intersectedObject;
             // 记录对象emissive原始颜色
-            this.pickedObjectSavedColor = intersectedObject.material.emissive.getHex();
+            this.pickedObjectSavedMaterial = this.pickedObject.material;
             // 选中对象进行高亮
-            intersectedObject.material.emissive.setHex(0xffff00);
+            this.pickedObject.material = this.pickedObject.material.clone();
+            this.pickedObject.material.emissive.setHex(0xffff00);
             return id;
         } else {
-            if (this.pickedObject) {
-                this.pickedObject.material.emissive.setHex(this.pickedObjectSavedColor);
-                this.pickedObject = null;
-            }
+            this.clearSelection();
             return 0;
         }
-
+    }
+    
+    // 恢复功能
+    clearSelection() {
+        if (this.pickedObject && this.pickedObjectSavedMaterial) {
+            // 释放克隆的材质
+            this.pickedObject.material.dispose();
+            // 恢复原始材质
+            this.pickedObject.material = this.pickedObjectSavedMaterial;
+            // 选取对象置为空
+            this.pickedObject = null;
+            this.pickedObjectSavedMaterial = null;
+        }
     }
 }

@@ -1,18 +1,17 @@
 {
   "name": "@vben/web-ele",
   "version": "5.5.9",
-  "homepage": "https://vben.pro",
-  "bugs": "https://github.com/vbenjs/vue-vben-admin/issues",
+  "bugs": "https://github.com/Star4396/MyProject/issues",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vbenjs/vue-vben-admin.git",
+    "url": "git+https://github.com/Star4396/MyProject.git",
     "directory": "apps/web-ele"
   },
-  "license": "MIT",
+  "license": "MIT | 基于 Vben Admin 二次开发",
   "author": {
-    "name": "vben",
-    "email": "ann.vben@gmail.com",
-    "url": "https://github.com/anncwb"
+    "name": "Ningrui Yang",
+    "email": "1207037607@qq.com",
+    "url": "https://github.com/Star4396"
   },
   "type": "module",
   "scripts": {

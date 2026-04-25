@@ -65,7 +65,7 @@ const defaultPreferences: Preferences = {
   logo: {
     enable: true,
     fit: 'contain',
-    source: 'https://unpkg.com/@vbenjs/static-source@0.1.7/source/logo-v1.webp',
+    source: 'https://images.icon-icons.com/32/PNG/256/sun_weather_2764.png',
   },
   navigation: {
     accordion: true,

@@ -1,6 +1,6 @@
 <template>
   <Page>
-    <el-card shadow="hover" :body-style="{ padding: '20px' }">
+    <el-card shadow="hover" :body-style="{ padding: '20px', height: '748px', display: 'flex', flexDirection: 'column' }">
       <template #header>
         <div class="flex">
           <span style="font-weight: bold; align-items: center; display: flex; font-size: 22px;">模型列表</span>
@@ -12,7 +12,7 @@
           <el-button type="danger" class="ml-3" :disabled="!ids.length" @click="handleDeleteBatch">批量删除</el-button>
         </div>
       </template>
-      <el-table :data="formData" stripe @selection-change="handleSelectChange" >
+      <el-table :data="formData" v-loading="isLoading" max-height="664px" stripe @selection-change="handleSelectChange" >
         <el-table-column type="selection" width="55" />
         <el-table-column prop="name" label="模型名称" />
         <el-table-column prop="remark" label="备注" />
@@ -29,6 +29,7 @@
         </el-table-column>
         
       </el-table>
+      <div class="flex-1"></div>
       <div class="flex flex-row mt-3 right-0">
         <div class="flex flex-1"></div>
         <el-pagination
@@ -36,7 +37,7 @@
           @current-change="load"
           v-model:currentPage="currentPage"
           v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 30, 50]"
+          :page-sizes="[15, 20, 30, 50]"
           layout="total, sizes, prev, pager, next, jumper"
           :total="totalNum"
           background
@@ -57,6 +58,7 @@
         v-model:file-list="fileList"
         multiple
         drag
+        accept=".glb"
         :limit="1"
         :on-success="handleSuccess"
         :on-remove="handleRemove"
@@ -100,12 +102,13 @@ const formData = ref<ModelData[]>([]);
 const ids = ref<number[]>([]);
 const searchInput = ref<string>('');
 const currentPage = ref<number>(1);
-const pageSize = ref<number>(10);
+const pageSize = ref<number>(15);
 const totalNum = ref<number>(0);
 const openModal = ref<boolean>(false);
 const isCreate = ref<boolean>(false);
 const isUpdate = ref<boolean>(false);
 const fileList = ref<UploadFile[]>([]);
+const isLoading = ref<boolean>(false);
 
 const router = useRouter();
 
@@ -201,6 +204,7 @@ const handlePreview = (row: ModelData): void => {
 
 
 const load = async (): Promise<void> => {
+  isLoading.value = true;
   try {
     const res = await requestModelClient.get<PageResult<ModelData>>('/model/selectAll', {
       params: {
@@ -213,6 +217,8 @@ const load = async (): Promise<void> => {
     totalNum.value = res.total;
   } catch (err) {
     console.error("加载列表数据失败, ", err);
+  } finally {
+    isLoading.value = false;
   }
 }
 
@@ -229,6 +235,7 @@ const update = async (): Promise<void> => {
   try {
     await requestModelClient.put('/model/update', data.form);
     await load();
+    ElMessage.success("修改成功！");
   } catch (err) {
     console.error("修改信息失败, ", err);
   }
@@ -239,6 +246,7 @@ const handleDelete = async (row: FormModel): Promise<void> => {
     await ElMessageBox.confirm("是否删除数据？删除后不可恢复", "删除确认", {type: 'warning'});
     await requestModelClient.delete('/model/deleteById/' + row.id);
     await load();
+    ElMessage.success("删除成功！");
   } catch (err) {
     console.log("取消删除模型：" + row.name);
   }

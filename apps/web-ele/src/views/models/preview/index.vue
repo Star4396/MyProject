@@ -1,15 +1,15 @@
 <template>
   <div>
-    <div style="position: absolute; padding: 50px; font-size: 36px; font-weight: bold;">{{previewTitle}}</div>
-    <div style="position: absolute; margin: 120px 50px; font-size: 20px;">
+    <div class="title">{{previewTitle}}</div>
+    <div class="preview-switch">
       <span>开启组件预览：</span>
       <el-switch v-model="previewMode" :active-value="true" :inactive-value="false" size="large" @change="previewChange"/>
     </div>
-    <div v-show="previewMode" style="position: absolute; margin: 165px 50px; font-size: 20px;">
+    <div v-show="previewMode" class="explode-switch">
       <span>开启爆炸视图：</span>
-      <el-switch v-model="explodeMode" :active-value="true" :inactive-value="false" size="large" @change="handleExplode"/>
+      <el-switch v-model="explodeMode" :disabled="isDisabled" :active-value="true" :inactive-value="false" size="large" @change="handleExplode"/>
     </div>
-    <div v-show="previewMode" style="right: 0; position: absolute; padding: 50px; ">
+    <div v-show="previewMode" class="info-table">
       <el-table 
         style="width: 240px; "
         max-height="600" 
@@ -25,7 +25,6 @@
     </div>
     <el-tooltip
       v-model:visible="visible"
-      content="测试" 
       placement="top" 
       effect="dark"
       virtual-triggering
@@ -63,12 +62,17 @@ const visible = ref<boolean>(false);
 const tooltipRef = ref({
   getBoundingClientRect: () => toolPosition.value,
 });
-const partInfo = ref<{ id: number; name: string; }>({});
-const targetPoints = ref([]);
+const partInfo = ref<{ id: number; name: string; } | null>(null);
+const targetPoints = ref<THREE.Vector3[]>([]);
 const radius = ref<number>(0);
+const savedMaterial = ref<THREE.MeshStandardMaterial | null>(null);
 
-let stopAnimation_raw = null;
-let stopAnimation_pick = null;
+let stopAnimation_raw: (() => void) | null = null;
+let stopAnimation_pick: (() => void) | null = null;
+
+const isDisabled = computed(() => {
+  return partsList.value.length < 2;
+})
 
 // 预览状态变化
 const previewChange = () => {
@@ -83,23 +87,22 @@ const previewChange = () => {
       mixer.value.uncacheRoot(mixer.value.getRoot());
       mixer.value = null;
       // 恢复到原始位置
-      for (let obj in idMap) {
-        obj.position = obj.userData.originalPosition;
-      }
+      idMap.value.forEach((obj) => {
+        obj.position.copy(obj.userData.originalPosition);
+
+      })
     }
   } else {
-    // 顺便关闭爆炸预览
+    // 如果爆炸模式还开着，关闭爆炸预览
     if (explodeMode.value) {
       explodeMode.value = false;
+      handleExplode();
     }
-    // // 恢复动画
-    // if (gltf.animations.length > 0) {
-    //   const firstAnimation = gltf.animations[0];
-    //   if (firstAnimation) {
-    //     mixer.value = new THREE.AnimationMixer(gltf.scene);
-    //     mixer.value.clipAction(firstAnimation).play();
-    //   }
-    // }
+    // 恢复动画
+    if (firstAnimation.value && scene.value && !mixer.value) {
+      mixer.value = new THREE.AnimationMixer(scene.value);
+      mixer.value.clipAction(firstAnimation.value).play();
+    }
     // 移除监听
     renderer.value.domElement.removeEventListener("mousemove", setPickPosition);
     renderer.value.domElement.removeEventListener("mouseleave", clearPickPosition);
@@ -108,13 +111,22 @@ const previewChange = () => {
 
 // 处理部件表hover
 const handleMouseEnter = (row: PartData) => {
-  const obj = idMap.value[row.id];
-  obj.material.emissive.setHex(0xffff00);
+  const mesh = idMap.value[row.id];
+  if (mesh && !savedMaterial.value) {
+    savedMaterial.value = mesh.material;
+    mesh.material = mesh.material.clone();
+    mesh.material.emissive.setHex(0xffff00);
+  }
 }
 
 const handleMouseLeave = (row: PartData) => {
-  const obj = idMap.value[row.id];
-  obj.material.emissive.setHex(obj.userData.originalColor);
+  const mesh = idMap.value[row.id];
+  if (mesh && savedMaterial.value) {
+    // 释放现有资源
+    mesh.material.dispose();
+    mesh.material = savedMaterial.value;
+    savedMaterial.value = null;
+  }
 }
 
 // 处理爆炸视图
@@ -137,7 +149,7 @@ const handleExplode = () => {
   }
 }
 
-// 生成球面上均匀分布的点
+// 黄金螺旋算法，生成球面上均匀分布的点
 const generateSpherePoints = (n: number, radius: number, center = new THREE.Vector3()) => {
   const targetPoints = [];
   const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // 黄金角度
@@ -162,12 +174,12 @@ const generateSpherePoints = (n: number, radius: number, center = new THREE.Vect
 }
 
 // 缓动函数
-const easeInOutCubic = (t: number) => {
+const easeInOutCubic = (t: number):number => {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
 // 平滑移动动画
-const animateToSpherePoints = (meshes: THREE.Mesh[], targetPoints: [], duration: number = 2000) => {
+const animateToSpherePoints = (meshes: THREE.Mesh[], targetPoints: THREE.Vector3[], duration: number = 2000) => {
   const startPosition = meshes.map(mesh => mesh.position.clone());
   // 记录动画开始时间
   const startTime = performance.now();
@@ -179,16 +191,22 @@ const animateToSpherePoints = (meshes: THREE.Mesh[], targetPoints: [], duration:
     const easeProgress = easeInOutCubic(progress);
 
     meshes.forEach((mesh, i) => {
-      mesh.position.lerpVectors(startPosition[i], targetPoints[i-1], easeProgress);
+      const targetPoint = targetPoints[i-1];
+      if (targetPoint) {
+        mesh.position.lerpVectors(startPosition[i], targetPoint, easeProgress);
+      }
     })
 
     if (progress < 1) {
       animateId = requestAnimationFrame(animateExplode);
     } else {
       meshes.forEach((mesh, i) => {
-        mesh.position.copy(targetPoints[i-1]);
+        const targetPoint = targetPoints[i-1];
+        if (targetPoint) {
+          mesh.position.copy(targetPoint);
+        }
       })
-      cancelAnimationFrame(animateId);
+      if (animateId) cancelAnimationFrame(animateId);
     }
   }
 
@@ -203,7 +221,7 @@ const animateToSpherePoints = (meshes: THREE.Mesh[], targetPoints: [], duration:
 
 const resetToOriginal = (meshes: THREE.Mesh[], duration: number = 2000) => {
   const startTime = performance.now();
-  const startPosition = meshes.map(mesh => mesh.position.clone());
+  const startPosition: THREE.Vector3[] = meshes.map(mesh => mesh.position.clone());
   const targetPosition = meshes.map(mesh => mesh.userData.originalPosition);
   let animateId: number | null = null;
 
@@ -246,24 +264,27 @@ const timer = shallowRef<THREE.Timer | null>(null);
 
 // 部件相关
 const partsList = ref<PartData[]>([]);
-const idMap = ref<THREE.Object3D[]>([]);
-const pickIdMap = ref<THREE.Object3D[]>([]);
+const idMap = ref<THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>[]>([]);
+const pickIdMap = ref<THREE.Mesh[]>([]);
 // 用于提示框展示
 const toolPosition = ref({x: 0, y: 0} as DOMRect);
 // 用于GPU拾取
-const pickPosition = ref({x: 0, y: 0});
+const pickPosition = ref<{x: number, y: number} | null>(null);
   
 // 环境光相关
-const pmremGenerater = shallowRef<THREE.PMREMGenerator | null>(null);
+const pmremGenerator = shallowRef<THREE.PMREMGenerator | null>(null);
 const ambientLight = shallowRef<THREE.AmbientLight | null>(null);
 
 // 监听窗口变化
-const resizeHandler = shallowRef<(() => void) | null>(null);
+const resizeHandler = ref<(() => void) | null>(null);
 
 // 各种加载器
 const dracoLoader = shallowRef<DRACOLoader | null>(null);
 const ktx2Loader = shallowRef<KTX2Loader | null>(null);
 const loader = shallowRef<GLTFLoader | null>(null);
+
+// 存储动画片段
+const firstAnimation = shallowRef<THREE.AnimationClip | null>(null);
 
 // 获取鼠标CSS像素位置
 const setPickPosition = (event: MouseEvent) => {
@@ -273,28 +294,31 @@ const setPickPosition = (event: MouseEvent) => {
     y: event.clientY
   })
   // 设置鼠标在canvas中的位置，用于GPU拾取
-  pickPosition.value.x = event.offsetX;
-  pickPosition.value.y = event.offsetY;
+  pickPosition.value = {
+    x: event.offsetX,
+    y: event.offsetY
+  }
 }
 
 // 清空选中
 const clearPickPosition = () => {
   toolPosition.value.x = -100000;
   toolPosition.value.y = -100000;
-  pickPosition.value.x = -100000;
-  pickPosition.value.y = -100000;
+  pickPosition.value = null;
   visible.value = false;
 }
 
 // 销毁函数
 const destoryThreeResource = () => {
-  // 1. 停止动画循环
+  // 1. 移除事件监听
   if (renderer.value) {
+    renderer.value.domElement.removeEventListener("mousemove", setPickPosition);
+    renderer.value.domElement.removeEventListener("mouseleave", clearPickPosition);
+
+    // 停止动画循环
     renderer.value.setAnimationLoop(null);
-    // 如果还开启
+    // 如果爆炸模式还开启，则关闭
     if (previewMode.value) {
-      renderer.value.domElement.removeEventListener("mousemove", setPickPosition);
-      renderer.value.domElement.removeEventListener("mouseleave", clearPickPosition);
       previewMode.value = false;
     }
   }
@@ -304,13 +328,19 @@ const destoryThreeResource = () => {
     mixer.value.stopAllAction();
     mixer.value.uncacheRoot(mixer.value.getRoot());
     mixer.value = null;
+    firstAnimation.value = null;
   }
   
-  // 2. 释放灯光资源
+  // 3. 释放灯光资源
   if (ambientLight.value) {
+    ambientLight.value.dispose();
     ambientLight.value = null;
-    pmremGenerater.value?.dispose();
-    pmremGenerater.value = null;
+  }
+  
+  // 4. 释放环境贴图
+  if (pmremGenerator.value) {
+    pmremGenerator.value.dispose();
+    pmremGenerator.value = null;
   }
 
   // 2. 销毁轨道控制器
@@ -319,41 +349,67 @@ const destoryThreeResource = () => {
     orbitControl.value = null;
   }
   
-  // 3. 释放GPU资源
+  // 5. 释放实际场景资源和环境贴图
   if (scene.value) {
+    if (scene.value.background && scene.value.background instanceof THREE.Texture) {
+      scene.value.background.dispose();
+      scene.value.background = null;
+    }
+    if (scene.value.environment && scene.value.environment instanceof THREE.Texture) {
+      scene.value.environment.dispose();
+      scene.value.environment = null;
+    }
     scene.value.traverse((obj) => {
       if (obj instanceof THREE.Mesh) {
         obj.geometry.dispose();
         // 如果材质为数组
-        Array.isArray(obj.material)
-          ? obj.material.forEach(mat => {
-            if (mat.map) mat.map.dispose();
-            mat.dispose();
-          })
-          : obj.material.dispose()
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(mat => mat.dispose());
+        } else {
+          obj.material.dispose();
+        }
       }
     })
     scene.value = null;
   }
 
+  // 6. 释放拾取场景资源
+  if (pickingScene.value) {
+    pickingScene.value.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        obj.geometry.dispose();
+        if (Array.isArray(obj.material)) {
+          obj.material.forEach(mat => mat.dispose());
+        } else {
+          obj.material.dispose();
+        }
+      }
+    });
+    pickingScene.value = null;
+  }
+
+  // 7. 清理数据
   partsList.value = [];
   targetPoints.value = [];
   idMap.value = [];
   pickIdMap.value = [];
   
-  // 5. 清除相机
+  // 8. 清除相机
   camera.value = null;
   
+  // 9. 清除计时器
   if (timer.value) {
     timer.value.disconnect();
     timer.value = null;
   }
+
+  // 10. 移除窗口大小监听
   if (resizeHandler.value) {
     window.removeEventListener("resize", resizeHandler.value);
     resizeHandler.value = null;
   }
   
-  // 清除加载器
+  // 11. 清除加载器
   if (dracoLoader.value) {
     dracoLoader.value.dispose();
     dracoLoader.value = null;
@@ -364,6 +420,7 @@ const destoryThreeResource = () => {
   }
   loader.value = null;
   
+  // 12. 清除渲染器上下文
   if (renderer.value) {
     const canvas = renderer.value.domElement;
     canvas?.parentElement?.removeChild(canvas);
@@ -387,7 +444,7 @@ const adaptCameraToModel = (camera: THREE.PerspectiveCamera,
   const maxSize = Math.max(size.x, size.y, size.z);
   radius.value = maxSize;
   
-  camera.position.copy(new THREE.Vector3(maxSize, 0, maxSize));
+  camera.position.copy(new THREE.Vector3(maxSize, -maxSize, maxSize));
   const center = box.getCenter(new THREE.Vector3());
   controls.target.copy(center);
   camera.lookAt(center);
@@ -420,17 +477,21 @@ const initScene = async (glbUrl: string): Promise<void> => {
   // 添加canvas画布
   container.appendChild(renderer.value.domElement);
 
-  // 创建环境贴图
+  // 创建天空对象
   const sky = new Sky();
+  // 获取天空材质的着色器
   const uniforms = sky.material.uniforms;
-  uniforms['turbidity']!.value = 0;  // 浑浊度，0清澈
-  uniforms['rayleigh']!.value = 3; // 散射强度
-  uniforms['mieDirectionalG']!.value = 0.7;  // 前向散射
+  // 对着色器的参数进行设置
+  uniforms['turbidity']!.value = 0;  // 浑浊度，空气清不清
+  uniforms['rayleigh']!.value = 3; // 散射强度，天空蓝不蓝
+  uniforms['mieDirectionalG']!.value = 0.7;  // 前向散射，太阳光晕是否明显
   uniforms['sunPosition']!.value.set( - 0.8, 0.19, 0.56 );  // 太阳位置
-  pmremGenerater.value = new THREE.PMREMGenerator(renderer.value);
-  const environmnet = pmremGenerater.value.fromScene(sky).texture;
-  scene.value.background = environmnet; // 天空背景
-  scene.value.environment = environmnet;  // 光照条件
+  // 创建环境贴图生成器，需要renderer作为输入
+  pmremGenerator.value = new THREE.PMREMGenerator(renderer.value);
+  // 将天空场景转化为环境贴图
+  const environmnet = pmremGenerator.value.fromScene(sky).texture;
+  scene.value.background = environmnet; // 肉眼看到的背景（对人）
+  scene.value.environment = environmnet;  // 材质的反射条件（对模型）
   
   // 创建轨道控制器
   orbitControl.value = new OrbitControls(camera.value, renderer.value.domElement);
@@ -471,6 +532,10 @@ const initScene = async (glbUrl: string): Promise<void> => {
         obj.userData["originalPosition"] = obj.position.clone();  // 原始位置，用于爆炸视图
         obj.userData["originalColor"] = obj.material.emissive.getHex(); // 原始颜色，用于还原高亮
 
+        if (!obj.userData.name) {
+          obj.userData.name = `组件${id}`;
+        }
+
         // 加入组件列表，用于信息展示
         partsList.value.push({
           id: id,
@@ -505,11 +570,14 @@ const initScene = async (glbUrl: string): Promise<void> => {
     targetPoints.value = generateSpherePoints(partsList.value.length, radius.value)
 
     // 播放动画
-    if (gltf.animations.length > 0) {
-      const firstAnimation = gltf.animations[0];
-      if (firstAnimation) {
+    if (gltf.animations.length > 0 && gltf.animations[0] && !firstAnimation.value) {
+      // 存储动画数据, AnimationClip
+      firstAnimation.value = gltf.animations[0];
+      if (firstAnimation.value) {
+        // 控制场景的mixer
         mixer.value = new THREE.AnimationMixer(gltf.scene);
-        mixer.value.clipAction(firstAnimation).play();
+        // AnimationClip 转为 AnimationAction，并标记为播放状态
+        mixer.value.clipAction(firstAnimation.value).play();
       }
     }
 
@@ -517,14 +585,15 @@ const initScene = async (glbUrl: string): Promise<void> => {
       renderer.value.domElement.addEventListener("mousemove", setPickPosition);
       renderer.value.domElement.addEventListener("mouseleave", clearPickPosition);
       if (mixer.value && scene.value && idMap.value.length) {
-        // 停止动画
+        // 停止所有动画
         mixer.value.stopAllAction();
+        // 获取动画的根模型并清除缓存
         mixer.value.uncacheRoot(mixer.value.getRoot());
         mixer.value = null;
         // 恢复到原始位置
-        for (let obj in idMap) {
-          obj.position = obj.userData.originalPosition;
-        }
+        idMap.value.forEach((mesh) => {
+          mesh.position.copy(mesh.userData.originalPosition);
+        })
       }
     }
     ElMessage.success("模型加载成功！");
@@ -559,21 +628,25 @@ const initScene = async (glbUrl: string): Promise<void> => {
       mixer.value.update(delta);
     }
 
+    // 更新轨道控制器
     orbitControl.value.update();
+    // 如果默认开启组件预览且场景有内容，
     if (previewMode.value && scene.value) {
-      const pickId = pickHelper.pick(pickPosition.value, pickingScene.value, camera.value, renderer.value, idMap.value);
-      if (pickId > 0) {
-        partInfo.value = partsList.value.find(item => item.id === pickId)!;
-        visible.value = true;
-      } else {
-        visible.value = false
+      if (pickPosition.value) {
+        const pickId = pickHelper.pick(pickPosition.value, pickingScene.value, camera.value, renderer.value, idMap.value);
+        if (pickId > 0) {
+          partInfo.value = partsList.value.find(item => item.id === pickId)!;
+          visible.value = true;
+        } else {
+          visible.value = false
+        }
       }
     }
     renderer.value.render(scene.value, camera.value);
-
   }
 
   renderer.value.setAnimationLoop(animate);
+  resizeHandler.value();
 
 }
 
@@ -598,9 +671,42 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+.title {
+  position: absolute; 
+  padding: 50px; 
+  font-size: 36px; 
+  font-weight: bold; 
+  z-index: 10;
+}
+
+.preview-switch {
+  position: absolute; 
+  margin-top: 120px; 
+  margin-left: 50px; 
+  font-size: 20px; 
+  z-index: 10;
+}
+
+.explode-switch {
+  position: absolute; 
+  margin-top: 165px; 
+  margin-left: 50px; 
+  font-size: 20px; 
+  z-index: 10;
+}
+
+.info-table {
+  right: 0; 
+  position: 
+  absolute; 
+  padding: 50px; 
+  z-index: 10;
+}
+
 .three-container {
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+  position: absolute;
+  inset: 0;
+  height: calc(100vh - 88px);
+  z-index: 0;
 }
 </style>
