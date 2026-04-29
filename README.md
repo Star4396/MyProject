@@ -3,10 +3,7 @@
 
 本项目是一个基于 VBen Admin ( Element Plus ) 开发的工业级三维模型全生命周期管理解决方案，实现模型上传、智能预览、组件级交互与爆炸视图分析的一体化工作流。
 
-当前代码只包含前端部分，后端代码请访问：
-```
-https://github.com/Star4396/springboot
-```
+当前代码只包含前端部分，后端代码请[点击这里](https://github.com/Star4396/springboot)：
 
 ## 技术架构
 
