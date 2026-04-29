@@ -3,7 +3,10 @@
 
 本项目是一个基于 VBen Admin(Element Plus) 开发的工业级三维模型全生命周期管理解决方案，实现模型上传、智能预览、部件级交互与爆炸视图分析的一体化工作流。
 
-本项目只包含前端代码，后端代码请
+本项目只包含前端代码，后端代码请访问
+```
+https://github.com/Star4396/springboot
+```
 
 ## 核心功能
 
@@ -59,10 +62,6 @@ https://github.com/user-attachments/assets/52e201d1-19f7-491c-a64d-a8e0734247bb
 
 https://github.com/user-attachments/assets/b5a3154c-cff5-4c63-af72-5d85a8565061
 
-卧室
-
-https://github.com/user-attachments/assets/3b506849-d04e-4c37-a31b-6f4ac0143984
-
 ### 组件级交互
 点击“开启组件预览”按钮进入**组件预览模式**，进入时当前动画会停止。
 
@@ -80,20 +79,12 @@ https://github.com/user-attachments/assets/570d20b7-6029-4cf8-b6fa-87520a08c655
 
 https://github.com/user-attachments/assets/6fb0b5d5-7a08-4268-9f05-1d0b6514b5a0
 
-台灯
-
-https://github.com/user-attachments/assets/1392d652-ca51-4b30-9c85-0b4a85f5dfbc
-
 ### 爆炸视图
 开启组件预览模式时会出现“开启爆炸视图”按钮，点击开启
 
 地牢
 
 https://github.com/user-attachments/assets/364ce6df-1c8f-415b-8658-e0d51857fa75
-
-台灯
-
-https://github.com/user-attachments/assets/9f483b5f-36c6-46d8-ad94-e314045a9db5
 
 鹦鹉（由于开启爆炸视图至少需要两个组件，而鹦鹉只有一个，所以禁用该功能）
 
